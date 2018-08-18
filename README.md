@@ -1,6 +1,8 @@
 # Простейшее key-value хранилище для Golang
 
 [![GoDoc](https://godoc.org/github.com/mdigger/keystore?status.svg)](https://godoc.org/github.com/mdigger/keystore)
+[![Build Status](https://travis-ci.org/mdigger/keystore.svg?branch=master)](https://travis-ci.org/mdigger/keystore)
+[![Coverage Status](https://coveralls.io/repos/github/mdigger/keystore/badge.svg?branch=master)](https://coveralls.io/github/mdigger/keystore?branch=master)
 
 Все данные хранятся в одном файле и не используют отдельного индекса.
 При первом открытии хранилища происходит построение индекса с содержимым
