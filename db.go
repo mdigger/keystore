@@ -238,7 +238,7 @@ func (db *DB) NextSequence() (uint64, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	db.counter++
-	var counter = make([]byte, 4)
+	var counter = make([]byte, 8)
 	binary.BigEndian.PutUint64(counter, db.counter)
 	_, err := db.f.WriteAt(counter, 4) // счетчик идет сразу после сигнатуры файла
 	if err == nil && db.sync {
