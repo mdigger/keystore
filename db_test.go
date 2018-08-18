@@ -96,7 +96,7 @@ func TestDB(t *testing.T) {
 		// 	t.Fatal(err)
 		// }
 		// fmt.Printf("%s\n", j)
-		if err := db.close(); err != nil {
+		if err := db.Close(); err != nil {
 			t.Fatal(err)
 		}
 		// log.Info("++++++++++++++++++++++++")
@@ -113,7 +113,7 @@ func TestDB(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = j
-	if err := db.close(); err != nil {
+	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
 }
