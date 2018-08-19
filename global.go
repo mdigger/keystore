@@ -221,7 +221,8 @@ func PutJSON(filename, key string, value interface{}) error {
 
 // Puts позволяет записать сразу несколько значений в хранилище. Для передачи
 // списка данных используется словарь с именем ключа и связанным с ним
-// значением.
+// значением. Для приведения значений к формату []byte используется функция
+// Bytes.
 func Puts(filename string, values map[string]interface{}) error {
 	db, err := Open(filename)
 	if err != nil {
