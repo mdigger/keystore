@@ -71,10 +71,11 @@ func open(filename string) (db *DB, err error) {
 	}
 	// читаем файл с данными и воспроизводим индекс
 	var (
-		offset      int64 = 12                     // размер заголовка с счетчиком
-		storedIndex       = new(storedIndex)       // сохраненная информация об индексе
-		indexes           = make(map[string]index) // список индексов по именами ключей
-		deleted           = make([]index, 0, 100)  // список свободных мест
+		offset      int64 = 12                      // размер заголовка с счетчиком
+		storedIndex       = new(storedIndex)        // сохраненная информация об индексе
+		indexes           = make(map[string]index)  // список индексов по именами ключей
+		times             = make(map[string]uint32) // используется для разрешения конфликтов
+		deleted           = make([]index, 0, 100)   // список свободных мест
 	)
 	for {
 		// читаем заголовок с индексной информацией
@@ -95,13 +96,23 @@ func open(filename string) (db *DB, err error) {
 			EmptySize: storedIndex.EmptySize,
 		}
 		if !storedIndex.Deleted {
-			// на всякий случай, в случае дублирования индекса оставляем
-			// только последнюю запись
+			// на всякий случай, проверяем возможное дублирование ключей
 			if idx, ok := indexes[strKey]; ok {
 				// logger.Warn("dublicate", "key", strKey)
-				deleted = append(deleted, idx)
+				if times[strKey] < storedIndex.Time {
+					// попалось более свежее значение
+					deleted = append(deleted, idx)   // освобождаем старое
+					indexes[strKey] = index          // сохраняем новое
+					times[strKey] = storedIndex.Time // запоминаем временную метку
+				} else {
+					// попалось более старое значение
+					deleted = append(deleted, index) // записываем как свободное место
+				}
+			} else {
+				// такого индекса еще нет
+				indexes[strKey] = index          // сохраняем новое
+				times[strKey] = storedIndex.Time // запоминаем временную метку
 			}
-			indexes[strKey] = index
 		} else {
 			deleted = append(deleted, index)
 		}
