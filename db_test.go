@@ -113,6 +113,7 @@ func TestDB(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = j
+	CloseAll()
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}

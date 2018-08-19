@@ -203,6 +203,9 @@ func (db *DB) SetSync(sync bool) {
 
 // close закрывает файл с данными хранилища.
 func (db *DB) close() (err error) {
+	if db.f.Fd() == ^(uintptr(0)) {
+		return nil // файл уже закрыт
+	}
 	db.mu.RLock()
 	if db.sync {
 		err = db.Sync()
