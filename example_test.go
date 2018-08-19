@@ -10,10 +10,14 @@ import (
 	"github.com/mdigger/keystore"
 )
 
+func init() {
+	os.RemoveAll("db/") // удаляем каталог с файлами хранилища
+}
+
 func Example() {
 	// автоматически закрыть по окончании все открытые хранилища
 	defer keystore.CloseAll()
-	var dbname = "test.db" // имя файла с хранилищем данных
+	var dbname = "db/test.db" // имя файла с хранилищем данных
 	// сохраняем данные в хранилище в формате JSON
 	// если такого файла с хранилищем не существует, то он будет создан
 	// автоматически
@@ -60,7 +64,7 @@ func Example() {
 
 func ExampleDB_Keys() {
 	// открываем хранилище
-	db, err := keystore.Open("test_keys.db")
+	db, err := keystore.Open("db/test_keys.db")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -93,9 +97,6 @@ func ExampleDB_Keys() {
 	// не используем префикс ключа, а выбираем по всем
 	keys = db.Keys(nil, []byte("test3"), 0, 0, false)
 	fmt.Printf("5: %q\n", keys)
-
-	// удаляем хранилище по окончании
-	keystore.DeleteDB(db.Path())
 	// output:
 	// 1: ["test1" "test2" "test3" "test4" "test5"]
 	// 2: ["test3" "test4" "test5"]

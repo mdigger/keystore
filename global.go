@@ -3,6 +3,7 @@ package keystore
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -31,6 +32,13 @@ func Open(filename string) (db *DB, err error) {
 	defer mu.Unlock()
 	db, ok := dbs[filename]
 	if !ok {
+		// создаем каталог, если он еще не создан
+		if dir := filepath.Dir(filename); dir != "." {
+			err = os.MkdirAll(dir, 0777)
+			if err != nil {
+				return nil, err
+			}
+		}
 		db, err = open(filename)
 		if err != nil {
 			return nil, err
