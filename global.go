@@ -121,7 +121,7 @@ func Get(filename, key string) ([]byte, error) {
 	return db.Get(key)
 }
 
-// GetJSON преобразует значение из хранилища объект. Значение в хранилище
+// GetJSON преобразует значение из хранилища в объект. Значение в хранилище
 // должно быть представлено в формате JSON, иначе вернется ошибка.
 func GetJSON(filename, key string, v interface{}) error {
 	db, err := Open(filename)
