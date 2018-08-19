@@ -134,7 +134,7 @@ func open(filename string) (db *DB, err error) {
 
 // String возвращает имя хранилища.
 func (db *DB) String() string {
-	return fmt.Sprintf("db:%s", db.f.Name())
+	return fmt.Sprintf("db:%s", db.Path())
 }
 
 // Path возвращает имя файла с хранилищем.

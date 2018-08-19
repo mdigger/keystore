@@ -128,6 +128,11 @@ func TestBinaryKeys(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		db.SetSync(false)
+		// fmt.Printf("database file: %q\n", db)
+		if db.String() != "db:"+filename {
+			t.Error("bad db string path")
+		}
 		for i := 0; i < 256; i++ {
 			var id = make([]byte, 4)
 			binary.BigEndian.PutUint32(id, uint32(i))
@@ -137,7 +142,8 @@ func TestBinaryKeys(t *testing.T) {
 			}
 		}
 		keys := db.Keys("", "", 0, 0, true)
-		fmt.Printf("%q\n", keys)
+		// fmt.Printf("%q\n", keys)
+		_ = keys
 		db.Close()
 	}
 }
