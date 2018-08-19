@@ -5,13 +5,14 @@ import (
 	"encoding"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 )
 
 // Bytes преобразует данные в бинарный формат с помощью binary.BigEndian.
 // Отдельная обработка добавлена для string, []byte,  json.RawMessage, byte
 // и всех остальных, кто поддерживает encoding.BinaryMarshaler,
-// encoding.TextMarshaler или json.Marshaler. Возвращает ошибку, если
-// преобразование не получилось.
+// encoding.TextMarshaler, json.Marshaler или fmt.Stringer. Возвращает ошибку,
+// если преобразование не получилось.
 func Bytes(v interface{}) ([]byte, error) {
 	switch v := v.(type) {
 	case []byte:
@@ -28,6 +29,8 @@ func Bytes(v interface{}) ([]byte, error) {
 		return v.MarshalText()
 	case json.Marshaler:
 		return v.MarshalJSON()
+	case fmt.Stringer:
+		return []byte(v.String()), nil
 	default:
 		var buf = bufPool.Get().(*bytes.Buffer)
 		buf.Reset() // сбрасываем буфер от возможного предыдущего значения
