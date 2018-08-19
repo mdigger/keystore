@@ -83,9 +83,9 @@ func CloseAll() {
 	mu.Unlock()
 }
 
-// DeleteDB удаляет файл с хранилищем с заданным именем, предварительно его
+// Remove удаляет файл с хранилищем с заданным именем, предварительно его
 // закрывая, если оно было открыто.
-func DeleteDB(filename string) error {
+func Remove(filename string) error {
 	if err := Close(filename); err != nil {
 		return err
 	}
