@@ -72,7 +72,7 @@ func main() {
 		log.Fatal("PutsJSON error:", err)
 	}
 	// выбираем все ключи, сохраненные в хранилище, которые начинаются на `t`
-	keys, err := keystore.Keys(dbname, []byte{'t'}, nil, 0, 0, true)
+	keys, err := keystore.Keys(dbname, "t", "", 0, 0, true)
 	if err != nil {
 		log.Fatal("Keys error:", err)
 	}
@@ -95,20 +95,20 @@ func main() {
 
 - выбираем все ключи, которые начинаются на `test`
 
-    	db.Keys([]byte("test"), nil, 0, 0, true)
+    	db.Keys("test", "", 0, 0, true)
 
 - выбираем все ключи, которые начинаются на `test`, но после ключа `test2`
 
-    	db.Keys([]byte("test"), []byte("test2"), 0, 0, true)
+    	db.Keys("test", "test2", 0, 0, true)
 
 - сортируем вывод в обратном порядке
 
-    	db.Keys(nil, nil, 0, 0, false)
+    	db.Keys("", "", 0, 0, false)
 
 - выбираем не более двух ключей
 
-	    db.Keys([]byte("test"), []byte("test2"), 0, 2, true)
+	    db.Keys("test", "test2", 0, 2, true)
 
 - не используем префикс ключа, а выбираем по всем
 
-	    db.Keys(nil, []byte("test3"), 0, 0, false)
+	    db.Keys("", "test3", 0, 0, false)

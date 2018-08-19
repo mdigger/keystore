@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -131,49 +132,6 @@ func open(filename string) (db *DB, err error) {
 	return db, nil
 }
 
-// storedIndex описывает формат хранимого индекса.
-type storedIndex struct {
-	Time      uint32 // timestamp
-	Deleted   bool   // флаг удаленного ключа
-	KeySize   uint8  // размер ключа
-	DataSize  uint32 // размер данных
-	EmptySize uint32 // размер свободного места за данными
-}
-
-var storedIndexSize = int64(binary.Size(new(storedIndex)))
-
-// Size возвращает размер, реально занимаемый данными, включая индекс.
-func (i storedIndex) Size() int64 {
-	// плюс размер данных storedIndex
-	return storedIndexSize + int64(i.KeySize) + int64(i.DataSize+i.EmptySize)
-}
-
-// index описывает данные, хранимые об индексе в памяти.
-type index struct {
-	Offset    uint32 // смещение от начала файла
-	KeySize   uint8  // длина названия ключа
-	DataSize  uint32 // размер данных
-	EmptySize uint32 // размер свободного места за данными
-}
-
-var indexSize = int64(binary.Size(new(index)))
-
-// Size возвращает суммарный размер ключа и данных, но без учета метаданных.
-func (i index) Size() uint32 {
-	return uint32(i.KeySize) + i.DataSize + i.EmptySize
-}
-
-// DataOffset возвращает смещение относительно начала файла для чтения данных.
-func (i index) DataOffset() int64 {
-	// плюс размер данных storedIndex и размер ключа
-	return int64(i.Offset) + indexSize + int64(i.KeySize) + 1
-}
-
-// String возвращает строковое представление индекса, используемое для отладки.
-func (i index) String() string {
-	return fmt.Sprintf("%d:%d", i.Offset, i.Size())
-}
-
 // String возвращает имя хранилища.
 func (db *DB) String() string {
 	return fmt.Sprintf("db:%s", db.f.Name())
@@ -254,7 +212,7 @@ func (db *DB) NextSequence() (uint64, error) {
 var ErrNotFound = errors.New("key not found")
 
 // get возвращает данные, сохраненные с указанным ключом.
-func (db *DB) get(key []byte) ([]byte, error) {
+func (db *DB) get(key string) ([]byte, error) {
 	index, ok := db.indexes[string(key)]
 	if !ok {
 		return nil, ErrNotFound
@@ -270,7 +228,7 @@ func (db *DB) get(key []byte) ([]byte, error) {
 
 // Get возвращает данные, сохраненные с указанным ключом. Если данные с таким
 // ключем в хранилище не сохранены, то возвращается ошибка ErrNotFound.
-func (db *DB) Get(key []byte) ([]byte, error) {
+func (db *DB) Get(key string) ([]byte, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 	return db.get(key)
@@ -279,7 +237,7 @@ func (db *DB) Get(key []byte) ([]byte, error) {
 // GetJSON преобразует значение из хранилища обратно в объект. Возвращает
 // ошибку, если данные с таким ключем не сохранены или формат сохраненных
 // данных не соответствует формату JSON.
-func (db *DB) GetJSON(key []byte, v interface{}) error {
+func (db *DB) GetJSON(key string, v interface{}) error {
 	data, err := db.Get(key)
 	if err != nil {
 		return err
@@ -290,7 +248,7 @@ func (db *DB) GetJSON(key []byte, v interface{}) error {
 // Gets возвращает список значений, соответствующих списку ключей. Игнорирует
 // ошибки с ненайденными ключами: в этом случае в качестве значения для такого
 // ключа будет возвращено nil.
-func (db *DB) Gets(keys ...[]byte) (result [][]byte, err error) {
+func (db *DB) Gets(keys ...string) (result [][]byte, err error) {
 	result = make([][]byte, len(keys))
 	db.mu.RLock()
 	defer db.mu.RUnlock()
@@ -310,7 +268,7 @@ func (db *DB) Gets(keys ...[]byte) (result [][]byte, err error) {
 //
 // Данную функцию удобно использовать для отдачи результатов выборки в ответ
 // на HTTP-запрос.
-func (db *DB) GetsJSON(keys ...[]byte) (result []json.RawMessage, err error) {
+func (db *DB) GetsJSON(keys ...string) (result []json.RawMessage, err error) {
 	result = make([]json.RawMessage, len(keys))
 	db.mu.RLock()
 	defer db.mu.RUnlock()
@@ -346,26 +304,26 @@ func (db *DB) Has(key string) bool {
 // места, где бы он мог быть в отсортированном списке. offset задает сдвиг
 // относительно начала списка, а limit - ограничивает количество ключей в
 // выборке.
-func (db *DB) Keys(prefix, last []byte, offset, limit uint32, asc bool) [][]byte {
+func (db *DB) Keys(prefix, last string, offset, limit uint32, asc bool) []string {
 	db.mu.RLock()
-	var keys = make([][]byte, 0, len(db.indexes))
+	var keys = make([]string, 0, len(db.indexes))
 	// выбираем подходящие ключи
 	for key := range db.indexes {
-		if bytes.HasPrefix([]byte(key), prefix) {
-			keys = append(keys, []byte(key))
+		if prefix == "" || strings.HasPrefix(key, prefix) {
+			keys = append(keys, key)
 		}
 	}
 	db.mu.RUnlock()
 	sort.Slice(keys, func(i, j int) bool {
-		return bytes.Compare(keys[i], keys[j]) < 0 == asc
+		return keys[i] < keys[j] == asc
 	})
-	if last != nil {
+	if last != "" {
 		// находим в списке строку, где оно должна бы была быть
 		var found = sort.Search(len(keys), func(i int) bool {
-			return bytes.Compare(keys[i], last) >= 0 == asc
+			return keys[i] >= last == asc
 		})
 		// в случае точного совпадения, исключаем само значение
-		if found < len(keys) && bytes.Equal(keys[found], last) {
+		if found < len(keys) && keys[found] == last {
 			found++
 		}
 		keys = keys[found:] // оставляем только ключи после указанного
@@ -388,8 +346,8 @@ func (db *DB) Keys(prefix, last []byte, offset, limit uint32, asc bool) [][]byte
 var bufPool = sync.Pool{New: func() interface{} { return new(bytes.Buffer) }}
 
 // delete удаляет ключ из хранилища.
-func (db *DB) delete(key []byte) error {
-	index, ok := db.indexes[string(key)]
+func (db *DB) delete(key string) error {
+	index, ok := db.indexes[key]
 	if !ok {
 		return ErrNotFound
 	}
@@ -409,7 +367,7 @@ func (db *DB) delete(key []byte) error {
 	if err != nil {
 		return err
 	}
-	delete(db.indexes, string(key)) // удаляем информацию об индексе
+	delete(db.indexes, key) // удаляем информацию об индексе
 	// logger.Debug("delete", "key", string(key), "index", index)
 	// сохраняем информацию об освободившемся для записи месте
 	var dl = len(db.deleted)
@@ -432,7 +390,7 @@ func (db *DB) delete(key []byte) error {
 
 // Delete удаляет ключ из хранилища. Если значения с таким ключом в хранилище
 // нет, то возвращается ошибка ErrNotFound.
-func (db *DB) Delete(key []byte) error {
+func (db *DB) Delete(key string) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	err := db.delete(key)
@@ -444,7 +402,7 @@ func (db *DB) Delete(key []byte) error {
 
 // Deletes удаляет список ключей из хранилища. В отличие от метода Delete, не
 // возвращает ошибку об отсуствии ключа в хранилище.
-func (db *DB) Deletes(keys ...[]byte) error {
+func (db *DB) Deletes(keys ...string) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	for _, key := range keys {
@@ -459,7 +417,7 @@ func (db *DB) Deletes(keys ...[]byte) error {
 }
 
 // put сохраняет данные в хранилище с указанным ключом.
-func (db *DB) put(key, value []byte) (err error) {
+func (db *DB) put(key string, value []byte) (err error) {
 	// удаляем индекс, если он существовал, и сводим задачу к первоначальной
 	if err := db.delete(key); err != nil && err != ErrNotFound {
 		return err
@@ -503,7 +461,7 @@ func (db *DB) put(key, value []byte) (err error) {
 		DataSize:  index.DataSize,
 		EmptySize: index.EmptySize,
 	})
-	_, _ = buf.Write(key)                      // имя ключа
+	_, _ = io.WriteString(buf, key)            // имя ключа
 	_, _ = buf.Write(value)                    // данные
 	_, err = db.f.WriteAt(buf.Bytes(), offset) // сохраняем в хранилище
 	bufPool.Put(buf)
@@ -518,7 +476,7 @@ func (db *DB) put(key, value []byte) (err error) {
 
 // Put сохраняет данные в хранилище с указанным ключом. Если данные с таким
 // ключом уже были ранее сохранены в хранилище, то они перезаписываются.
-func (db *DB) Put(key, value []byte) error {
+func (db *DB) Put(key string, value []byte) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	err := db.put(key, value)
@@ -530,7 +488,7 @@ func (db *DB) Put(key, value []byte) error {
 
 // PutJSON сохраняет данные в хранилище с указанным ключом в формате JSON.
 // Возвращает ошибку, если не удалось преобразовать объект в формат JSON.
-func (db *DB) PutJSON(key []byte, value interface{}) error {
+func (db *DB) PutJSON(key string, value interface{}) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -546,7 +504,7 @@ func (db *DB) Puts(values map[string][]byte) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	for key, value := range values {
-		if err := db.put([]byte(key), value); err != nil {
+		if err := db.put(key, value); err != nil {
 			return err
 		}
 	}

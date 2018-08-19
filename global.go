@@ -60,6 +60,18 @@ func Close(filename string) error {
 	return nil
 }
 
+// OpenAll открывает сразу несколько хранилищь с указанными именами файлов.
+// Позволяет провести инициализацию всех используемых хранилищь приложения
+// в одном месте и убедиться, что они существуют или будут созданы.
+func OpenAll(filenames ...string) error {
+	for _, name := range filenames {
+		if _, err := Open(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // CloseAll закрывает все открытые хранилища. Ошибка закрытия хранилищ не
 // обрабатывается.
 func CloseAll() {
@@ -101,7 +113,7 @@ func NextSequence(filename string) (uint64, error) {
 
 // Get возвращает данные, сохраненные с указанным ключом. Если данных с таким
 // ключем в хранилище нет, то возвращается ошибка ErrNotFound.
-func Get(filename string, key []byte) ([]byte, error) {
+func Get(filename, key string) ([]byte, error) {
 	db, err := Open(filename)
 	if err != nil {
 		return nil, err
@@ -111,7 +123,7 @@ func Get(filename string, key []byte) ([]byte, error) {
 
 // GetJSON преобразует значение из хранилища объект. Значение в хранилище
 // должно быть представлено в формате JSON, иначе вернется ошибка.
-func GetJSON(filename string, key []byte, v interface{}) error {
+func GetJSON(filename, key string, v interface{}) error {
 	db, err := Open(filename)
 	if err != nil {
 		return err
@@ -122,7 +134,7 @@ func GetJSON(filename string, key []byte, v interface{}) error {
 // Gets возвращает список значений, соответствующих списку ключей. Игнорирует
 // ошибки с ненайденными ключами: в этом случае в качестве значения для данного
 // ключа будет возвращен nil.
-func Gets(filename string, keys ...[]byte) (result [][]byte, err error) {
+func Gets(filename string, keys ...string) (result [][]byte, err error) {
 	db, err := Open(filename)
 	if err != nil {
 		return nil, err
@@ -133,7 +145,7 @@ func Gets(filename string, keys ...[]byte) (result [][]byte, err error) {
 // GetsJSON возвращает массив значений для указанных ключей в формате
 // json.RawMessage. Возвращает ошибку, если данные не соответствуют формату
 // JSON. Для ненайденных ключей возвращается значение nil.
-func GetsJSON(filename string, keys ...[]byte) (result []json.RawMessage, err error) {
+func GetsJSON(filename string, keys ...string) (result []json.RawMessage, err error) {
 	db, err := Open(filename)
 	if err != nil {
 		return nil, err
@@ -142,7 +154,7 @@ func GetsJSON(filename string, keys ...[]byte) (result []json.RawMessage, err er
 }
 
 // Has возвращает true, если значение с таким ключом задано в хранилище.
-func Has(filename string, key string) (bool, error) {
+func Has(filename, key string) (bool, error) {
 	db, err := Open(filename)
 	if err != nil {
 		return false, err
@@ -153,7 +165,7 @@ func Has(filename string, key string) (bool, error) {
 // Keys возвращает список ключей, подходящих под запрос.
 //
 // Подробную информацию по параметрам смотри в описании метода db.Keys.
-func Keys(filename string, prefix, last []byte, offset, limit uint32, asc bool) ([][]byte, error) {
+func Keys(filename, prefix, last string, offset, limit uint32, asc bool) ([]string, error) {
 	db, err := Open(filename)
 	if err != nil {
 		return nil, err
@@ -162,7 +174,7 @@ func Keys(filename string, prefix, last []byte, offset, limit uint32, asc bool) 
 }
 
 // Delete удаляет значение с указанным ключом из хранилища.
-func Delete(filename string, key []byte) error {
+func Delete(filename, key string) error {
 	db, err := Open(filename)
 	if err != nil {
 		return err
@@ -173,7 +185,7 @@ func Delete(filename string, key []byte) error {
 // Deletes удаляет список ключей из хранилища. В отличие от метода Delete,
 // позволяет удалить более одного ключа сразу и не возвращает ошибку при
 // отсуствии ключа в хранилище.
-func Deletes(filename string, keys ...[]byte) error {
+func Deletes(filename string, keys ...string) error {
 	db, err := Open(filename)
 	if err != nil {
 		return err
@@ -183,18 +195,23 @@ func Deletes(filename string, keys ...[]byte) error {
 
 // Put сохраняет данные в хранилище с указанным ключом. Если данные с таким
 // ключом уже были сохранены в хранилище, то они удаляются и перезаписываются
-// на новые.
-func Put(filename string, key, value []byte) error {
+// на новые. Значение автоматически преобразуется в формат []byte, используя
+// функцию Bytes.
+func Put(filename, key string, value interface{}) error {
 	db, err := Open(filename)
 	if err != nil {
 		return err
 	}
-	return db.Put(key, value)
+	bvalue, err := Bytes(value)
+	if err != nil {
+		return err
+	}
+	return db.Put(key, bvalue)
 }
 
 // PutJSON сохраняет данные в хранилище с указанным ключом в формате JSON.
 // Возвращает ошибку, если не удалось преобразовать объект в формат JSON.
-func PutJSON(filename string, key []byte, value interface{}) error {
+func PutJSON(filename, key string, value interface{}) error {
 	db, err := Open(filename)
 	if err != nil {
 		return err
@@ -205,12 +222,20 @@ func PutJSON(filename string, key []byte, value interface{}) error {
 // Puts позволяет записать сразу несколько значений в хранилище. Для передачи
 // списка данных используется словарь с именем ключа и связанным с ним
 // значением.
-func Puts(filename string, values map[string][]byte) error {
+func Puts(filename string, values map[string]interface{}) error {
 	db, err := Open(filename)
 	if err != nil {
 		return err
 	}
-	return db.Puts(values)
+	var bvalues = make(map[string][]byte, len(values))
+	for key, value := range values {
+		bvalue, err := Bytes(value)
+		if err != nil {
+			return err
+		}
+		bvalues[key] = bvalue
+	}
+	return db.Puts(bvalues)
 }
 
 // PutsJSON сохраняет в хранилище объекты в формате JSON. В случае невозможности

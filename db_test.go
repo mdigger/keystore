@@ -1,6 +1,7 @@
 package keystore
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"os"
@@ -44,10 +45,10 @@ func TestDB(t *testing.T) {
 		for i, key := range keys {
 			data := fmt.Sprintf("text init %02d:%04d [%s]",
 				p, i+1, randomAsterics())
-			err = db.PutJSON([]byte(key), data)
+			err = db.PutJSON(key, data)
 			if err == nil {
 				var s string
-				if err = db.GetJSON([]byte(key), &s); err == nil {
+				if err = db.GetJSON(key, &s); err == nil {
 					if data != s {
 						t.Fatalf("data init error: %q - %q", data, s)
 					}
@@ -60,7 +61,7 @@ func TestDB(t *testing.T) {
 
 		// log.Info("----------------------------")
 		for i := 1; i < 500; i++ {
-			key := []byte(keys[rand.Intn(len(keys))])
+			key := keys[rand.Intn(len(keys))]
 			if rand.Intn(3) == 0 {
 				if err = db.Delete(key); err == ErrNotFound {
 					err = nil
@@ -84,7 +85,7 @@ func TestDB(t *testing.T) {
 		}
 
 		// log.Info("===============================")
-		nkeys := db.Keys(nil, nil, 0, 0, true)
+		nkeys := db.Keys("", "", 0, 0, true)
 		j, err := db.GetsJSON(nkeys...)
 		if err != nil {
 			t.Fatal(err)
@@ -106,7 +107,7 @@ func TestDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nkeys := db.Keys(nil, nil, 0, 0, true)
+	nkeys := db.Keys("", "", 0, 0, true)
 	fmt.Printf("keys: %s\n", nkeys)
 	j, err := db.GetsJSON(nkeys...)
 	if err != nil {
@@ -116,5 +117,27 @@ func TestDB(t *testing.T) {
 	CloseAll()
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestBinaryKeys(t *testing.T) {
+	os.RemoveAll(filename)
+	for p := 1; p < 50; p++ {
+		// t.Logf("test %02d", p)
+		db, err := Open(filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := 0; i < 256; i++ {
+			var id = make([]byte, 4)
+			binary.BigEndian.PutUint32(id, uint32(i))
+			err = db.Put(string(id), id)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		keys := db.Keys("", "", 0, 0, true)
+		fmt.Printf("%q\n", keys)
+		db.Close()
 	}
 }
