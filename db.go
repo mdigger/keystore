@@ -380,6 +380,7 @@ func (db *DB) delete(key string) error {
 	if !ok {
 		return ErrNotFound
 	}
+	delete(db.indexes, key) // удаляем информацию об индексе
 	// получаем размер файла
 	end, err := db.f.Seek(0, io.SeekEnd)
 	if err != nil {
@@ -405,7 +406,6 @@ func (db *DB) delete(key string) error {
 	if err != nil {
 		return err
 	}
-	delete(db.indexes, key) // удаляем информацию об индексе
 	// logger.Debug("delete", "key", string(key), "index", index)
 	// сохраняем информацию об освободившемся для записи месте
 	var dl = len(db.deleted)
