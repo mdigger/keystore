@@ -380,6 +380,15 @@ func (db *DB) delete(key string) error {
 	if !ok {
 		return ErrNotFound
 	}
+	// получаем размер файла
+	end, err := db.f.Seek(0, io.SeekEnd)
+	if err != nil {
+		return err
+	}
+	// в том случае, если это последний блок в файле, то просто укорачиваем на него
+	if end == index.DataOffset()+int64(index.DataSize) {
+		return db.f.Truncate(int64(index.Offset))
+	}
 	// записиваем в заголовок метку об удалении
 	var buf = bufPool.Get().(*bytes.Buffer)
 	buf.Reset() // сбрасываем буфер от возможного предыдущего значения
@@ -391,7 +400,7 @@ func (db *DB) delete(key string) error {
 		Time:    uint32(time.Now().Unix()),
 		Deleted: true,
 	})
-	_, err := db.f.WriteAt(buf.Bytes(), int64(index.Offset))
+	_, err = db.f.WriteAt(buf.Bytes(), int64(index.Offset))
 	bufPool.Put(buf)
 	if err != nil {
 		return err
