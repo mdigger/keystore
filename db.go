@@ -143,7 +143,8 @@ func open(filename string) (db *DB, err error) {
 	return db, nil
 }
 
-// String возвращает имя хранилища.
+// String возвращает имя файла с хранилища с префиксом "db:" и обычно
+// используется для отладки или вывода в лог имени хранилища.
 func (db *DB) String() string {
 	return fmt.Sprintf("db:%s", db.Path())
 }
@@ -187,7 +188,9 @@ func (db *DB) close() (err error) {
 	return err
 }
 
-// Close закрывает хранилище.
+// Close закрывает хранилище. Если специально не задано не выполнять
+// синхронизацию, то при этом происходит принудительный сброс кешей в файл.
+// Повторное выполнение уже закрытого хранилища не приводит к ошибке.
 func (db *DB) Close() error {
 	mu.Lock()
 	delete(dbs, db.f.Name()) // удаляем из списка открытых
@@ -195,7 +198,7 @@ func (db *DB) Close() error {
 	return db.close()
 }
 
-// Count возвращает количество записей в хранилище.
+// Count возвращает количество записей (активных ключей данных) в хранилище.
 func (db *DB) Count() uint32 {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
@@ -244,7 +247,9 @@ func (db *DB) get(key string) ([]byte, error) {
 }
 
 // Get возвращает данные, сохраненные с указанным ключом. Если данные с таким
-// ключем в хранилище не сохранены, то возвращается ошибка ErrNotFound.
+// ключем в хранилище не сохранены, то возвращается ошибка ErrNotFound и nil
+// в качестве значения. Для пустого значения (nil) всегда возвращается пуcтой
+// массив байт ([]byte{}).
 func (db *DB) Get(key string) ([]byte, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
