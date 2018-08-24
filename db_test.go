@@ -147,3 +147,35 @@ func TestBinaryKeys(t *testing.T) {
 		db.Close()
 	}
 }
+
+func TestErrNotFound(t *testing.T) {
+	os.RemoveAll(filename)
+	db, err := Open(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	err = db.Put("id1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := db.Get("id1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(value) != 0 {
+		t.Fatal("bad empty value length")
+	}
+	value, err = db.Get("id100")
+	if err != ErrNotFound {
+		t.Fatal("bad not found")
+	}
+	if value != nil {
+		t.Fatal("bad not found value")
+	}
+	ErrNotFound = nil
+	_, err = db.Get("id100")
+	if err != nil {
+		t.Fatal("bad nil not found error")
+	}
+}
