@@ -467,9 +467,15 @@ func (db *DB) Deletes(keys ...string) error {
 
 // put сохраняет данные в хранилище с указанным ключом.
 func (db *DB) put(key string, value []byte) (err error) {
-	// удаляем индекс, если он существовал, и сводим задачу к первоначальной
-	if err := db.delete(key); err != nil && err != ErrNotFound {
-		return err
+	// проверяем, что запись с таким ключем уже существует
+	if index, ok := db.indexes[key]; ok {
+		if len(value) == 0 && index.DataSize == 0 {
+			return nil // не требуется перезапись пустого значения
+			// иначе удаляем индекс, если он существовал, и сводим задачу
+			// к первоначальной
+		} else if err := db.delete(key); err != nil {
+			return err
+		}
 	}
 	// теперь находим подходящее место для вставки данных
 	var (

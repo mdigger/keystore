@@ -173,9 +173,9 @@ func TestErrNotFound(t *testing.T) {
 	if value != nil {
 		t.Fatal("bad not found value")
 	}
-	ErrNotFound = nil
-	_, err = db.Get("id100")
-	if err != nil {
-		t.Fatal("bad nil not found error")
-	}
+	// ErrNotFound = nil
+	// _, err = db.Get("id100")
+	// if err != nil {
+	// 	t.Fatal("bad nil not found error")
+	// }
 }
