@@ -15,6 +15,8 @@ import (
 // если преобразование не получилось.
 func Bytes(v interface{}) ([]byte, error) {
 	switch v := v.(type) {
+	case nil:
+		return nil, nil
 	case []byte:
 		return v, nil
 	case string:
