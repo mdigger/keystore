@@ -24,3 +24,8 @@ func (t *Timestamp) UnmarshalJSON(b []byte) error {
 	t.Time = time.Unix(i, 0)
 	return nil
 }
+
+// Now возвращает текущее время в виде Timestamp.
+func Now() Timestamp {
+	return Timestamp{time.Now()}
+}
